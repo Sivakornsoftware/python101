@@ -95,3 +95,118 @@ export interface Ward {
   name: string;
   nameTh: string;
 }
+
+/* --------------------------------------------------------------------------
+ * Patient chart / Round Mode domain
+ * ------------------------------------------------------------------------ */
+
+export type ProblemStatus = "Active" | "Monitoring" | "Resolved";
+
+export interface Problem {
+  id: string;
+  name: string;
+  status: ProblemStatus;
+}
+
+export interface VitalSigns {
+  time?: string;
+  /** Blood pressure, e.g. "128/78". */
+  bp: string;
+  hr: number; // heart rate (bpm)
+  rr: number; // respiratory rate (/min)
+  spo2: number; // %
+  spo2Note?: string; // e.g. "RA"
+  temp: number; // °C
+}
+
+export interface IoSummary {
+  intake: number; // ml
+  output: number; // ml
+  balance: number; // ml (may be negative)
+}
+
+export type TimelineEventType =
+  | "nurse_note"
+  | "doctor_note"
+  | "progress_note"
+  | "lab"
+  | "medication"
+  | "imaging"
+  | "order"
+  | "consult";
+
+export interface TimelineEvent {
+  id: string;
+  /** Thai display date, e.g. "25 พ.ค. 2568". */
+  date: string;
+  /** Whether the date group is "today" (adds the (วันนี้) marker). */
+  isToday?: boolean;
+  /** Time, e.g. "08:30". */
+  time: string;
+  type: TimelineEventType;
+  title: string;
+  detail: string;
+  author: string;
+  /** Present for imaging events (thumbnail caption). */
+  thumbnailLabel?: string;
+  vitals?: VitalSigns;
+  painScore?: number;
+  news?: number;
+  io?: IoSummary;
+  attachments?: string[];
+}
+
+export interface Soap {
+  s: string;
+  o: string[];
+  a: string[];
+  p: string[];
+}
+
+export type OrderStatus = "Pending" | "Active" | "Completed" | "Cancelled";
+
+export interface OrderItem {
+  id: string;
+  name: string;
+  status: OrderStatus;
+}
+
+/** Full patient chart used by Round Mode and the patient detail pages. */
+export interface PatientDetail extends Patient {
+  dob: string; // "03-Jan-1957"
+  admittedDate: string; // "20-May-2025"
+  attending: string; // "Dr.Narin"
+  diagnoses: string[];
+  allergy?: string;
+  codeStatus: string; // "Full Code"
+  news: number;
+  labAlerts: number;
+  pendingResults: number;
+  pendingConsults: number;
+  medItems: number;
+  io: IoSummary;
+  problems: Problem[];
+  vitals: VitalSigns;
+  timeline: TimelineEvent[];
+  soap: Soap;
+  todaysOrders: OrderItem[];
+}
+
+export interface RoundQueueItem {
+  bed: string;
+  patientId: string;
+  name: string;
+  diagnosis: string;
+  news: number;
+}
+
+export interface RoundState {
+  wardId: string;
+  wardName: string;
+  wardNameTh: string;
+  current: number;
+  total: number;
+  estimatedTime: string;
+  activePatientId: string;
+  queue: RoundQueueItem[];
+}

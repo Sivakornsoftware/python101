@@ -1,0 +1,191 @@
+import type { PatientDetail, RoundState, TimelineEvent } from "@/lib/types";
+
+const patient101Timeline: TimelineEvent[] = [
+  {
+    id: "ev1",
+    date: "25 พ.ค. 2568",
+    isToday: true,
+    time: "08:30",
+    type: "nurse_note",
+    title: "Nurse Note",
+    detail:
+      "ผู้ป่วยรู้สึกเหนื่อยมากขึ้น ไม่มีไข้ หายใจเหนื่อยเวลาลุก O2 sat 95% RA แนะนำเทคนิคการหายใจ",
+    author: "น.ส.กมลวรรณ (พยาบาลวิชาชีพ)",
+    vitals: {
+      time: "08:30",
+      bp: "128/78",
+      hr: 92,
+      rr: 20,
+      spo2: 95,
+      spo2Note: "RA",
+      temp: 37.1,
+    },
+    painScore: 2,
+    news: 6,
+    io: { intake: 1250, output: 800, balance: 450 },
+    attachments: [],
+  },
+  {
+    id: "ev2",
+    date: "25 พ.ค. 2568",
+    isToday: true,
+    time: "07:45",
+    type: "lab",
+    title: "Lab Result",
+    detail: "Creatinine 2.8 (↑), BUN 48 (↑), K 5.6 (↑), Na 138, HCO3 20",
+    author: "LAB",
+  },
+  {
+    id: "ev3",
+    date: "25 พ.ค. 2568",
+    isToday: true,
+    time: "07:30",
+    type: "medication",
+    title: "Medication",
+    detail: "Lasix 40 mg IV stat",
+    author: "น.ส.กมลวรรณ",
+  },
+  {
+    id: "ev4",
+    date: "25 พ.ค. 2568",
+    isToday: true,
+    time: "07:30",
+    type: "progress_note",
+    title: "Doctor Progress Note",
+    detail: "ติดตามอาการ AKI และ CHF ต่อเนื่อง ปรับยา และติดตาม Lab",
+    author: "Dr.Narin",
+  },
+  {
+    id: "ev5",
+    date: "25 พ.ค. 2568",
+    isToday: true,
+    time: "06:15",
+    type: "medication",
+    title: "Medication",
+    detail: "Paracetamol 500 mg PO",
+    author: "น.ส.กมลวรรณ",
+  },
+  {
+    id: "ev6",
+    date: "25 พ.ค. 2568",
+    isToday: true,
+    time: "05:30",
+    type: "imaging",
+    title: "Chest X-ray",
+    detail: "Pulmonary congestion",
+    author: "Radiology",
+    thumbnailLabel: "CXR",
+  },
+  {
+    id: "ev7",
+    date: "24 พ.ค. 2568",
+    time: "18:20",
+    type: "doctor_note",
+    title: "Doctor Note",
+    detail: "ประเมินอาการ น้ำหนักเพิ่ม 2 kg แนะนำจำกัดน้ำ 1,500 ml/day",
+    author: "Dr.Narin",
+  },
+  {
+    id: "ev8",
+    date: "24 พ.ค. 2568",
+    time: "17:45",
+    type: "lab",
+    title: "Lab Result",
+    detail: "BNP 1,250 (↑), Hb 10.2 (↓), WBC 9,100",
+    author: "LAB",
+  },
+];
+
+const patient101: PatientDetail = {
+  id: "p101",
+  hn: "1234567",
+  an: "AN680001",
+  name: "นายสมชาย ใจดี",
+  ageYears: 68,
+  sex: "M",
+  diagnosis: "AKI, CHF",
+  losDays: 5,
+  priority: "P0",
+  hasAlert: true,
+  pending: { lab: 6, consult: 1, task: 4, med: 18 },
+  ward: "5A",
+  dob: "03-Jan-1957",
+  admittedDate: "20-May-2025",
+  attending: "Dr.Narin",
+  diagnoses: [
+    "Acute Kidney Injury (AKI)",
+    "Congestive Heart Failure (CHF)",
+    "Hypertension (HTN)",
+  ],
+  allergy: "Penicillin",
+  codeStatus: "Full Code",
+  news: 6,
+  labAlerts: 3,
+  pendingResults: 4,
+  pendingConsults: 1,
+  medItems: 18,
+  io: { intake: 1250, output: 800, balance: 450 },
+  problems: [
+    { id: "pr1", name: "Acute Kidney Injury (AKI)", status: "Active" },
+    { id: "pr2", name: "Congestive Heart Failure (CHF)", status: "Active" },
+    { id: "pr3", name: "Hypertension (HTN)", status: "Active" },
+    { id: "pr4", name: "Anemia", status: "Monitoring" },
+  ],
+  vitals: {
+    time: "08:30",
+    bp: "128/78",
+    hr: 92,
+    rr: 20,
+    spo2: 95,
+    spo2Note: "RA",
+    temp: 37.1,
+  },
+  timeline: patient101Timeline,
+  soap: {
+    s: "หายใจเหนื่อยขึ้นเมื่อวานนี้",
+    o: ["BP 128/78, HR 92, RR 20, SpO2 95%", "Cr 2.8, BUN 48, K 5.6", "CXR: congestion"],
+    a: ["AKI on CKD", "CHF decompensated"],
+    p: ["Lasix 40 mg IV q12h", "Monitor I/O", "Follow lab tomorrow"],
+  },
+  todaysOrders: [
+    { id: "o1", name: "CBC, Electrolyte, BUN, Cr", status: "Pending" },
+    { id: "o2", name: "Echo", status: "Pending" },
+    { id: "o3", name: "Cardiology Consult", status: "Pending" },
+  ],
+};
+
+/** Lightweight fallback for beds other than 101 (enough to render the chart). */
+function genericPatient(id: string): PatientDetail {
+  return {
+    ...patient101,
+    id,
+    name: "ผู้ป่วย (ข้อมูลจำลอง)",
+    diagnoses: ["ข้อมูลจำลอง"],
+    problems: [{ id: "g1", name: "ข้อมูลจำลอง", status: "Monitoring" }],
+    timeline: patient101Timeline.slice(0, 3),
+  };
+}
+
+export function buildMockPatientDetail(id: string): PatientDetail {
+  if (id === "p101" || id === "101") return patient101;
+  return genericPatient(id);
+}
+
+export const mockRoundState: RoundState = {
+  wardId: "5A",
+  wardName: "Ward 5A",
+  wardNameTh: "อายุรกรรมชาย 5A",
+  current: 5,
+  total: 32,
+  estimatedTime: "1 hr 10 min",
+  activePatientId: "p101",
+  queue: [
+    { bed: "101", patientId: "p101", name: "นายสมชาย ใจดี", diagnosis: "AKI, CHF", news: 6 },
+    { bed: "104", patientId: "p104", name: "นายประสิทธิ์ แซ่ตั้ง", diagnosis: "Stroke, DM", news: 7 },
+    { bed: "109", patientId: "p109", name: "นายธนวัฒน์ แก้วดี", diagnosis: "Sepsis", news: 8 },
+    { bed: "103", patientId: "p103", name: "นายวิชัย คำสา", diagnosis: "COPD", news: 3 },
+    { bed: "106", patientId: "p106", name: "นายไพโรจน์ มากมี", diagnosis: "Pneumonia", news: 2 },
+    { bed: "112", patientId: "p112", name: "นายวิชัยรุ่ง ใจดี", diagnosis: "Knee OA", news: 1 },
+    { bed: "105", patientId: "p105", name: "นายอุดม ศรีสุข", diagnosis: "DHF", news: 0 },
+  ],
+};

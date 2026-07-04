@@ -1,12 +1,8 @@
-import { Radar } from "lucide-react";
-import PagePlaceholder from "@/components/layout/PagePlaceholder";
+import RoundModeView from "@/components/patient/RoundModeView";
+import { getRoundState, getPatientDetail } from "@/lib/api/patient";
 
-export default function RoundPage() {
-  return (
-    <PagePlaceholder
-      icon={Radar}
-      title="Round Mode"
-      description="โหมดตรวจเยี่ยมผู้ป่วยแบบทีละราย เหมาะสำหรับการ round ward พร้อมดูข้อมูลสำคัญของผู้ป่วยแต่ละเตียง"
-    />
-  );
+export default async function RoundPage() {
+  const round = await getRoundState("5A");
+  const patient = await getPatientDetail(round.activePatientId);
+  return <RoundModeView initialRound={round} initialPatient={patient} />;
 }

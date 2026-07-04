@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AlertTriangle, BedDouble, MoreVertical } from "lucide-react";
 import type { Bed } from "@/lib/types";
 import { PRIORITY_STYLES } from "@/lib/priority";
@@ -67,10 +68,11 @@ export default function PatientCard({ bed }: { bed: Bed }) {
   const reserved = bed.status === "reserved";
 
   return (
-    <div
+    <Link
+      href={`/patients/${p.id}`}
       className={`flex flex-col rounded-xl border border-l-4 ${style.accent} ${
         p.priority === "P0" ? style.cardTint : "border-slate-200 bg-white"
-      } p-3 shadow-sm transition hover:shadow-md`}
+      } p-3 shadow-sm transition hover:shadow-md hover:ring-2 hover:ring-blue-100`}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-1">
@@ -88,13 +90,9 @@ export default function PatientCard({ bed }: { bed: Bed }) {
           {p.hasAlert ? (
             <AlertTriangle className={`h-4 w-4`} style={{ color: style.hex }} />
           ) : null}
-          <button
-            type="button"
-            className="text-slate-300 hover:text-slate-500"
-            aria-label="ตัวเลือก"
-          >
+          <span className="text-slate-300" aria-hidden>
             <MoreVertical className="h-4 w-4" />
-          </button>
+          </span>
         </div>
       </div>
 
@@ -133,6 +131,6 @@ export default function PatientCard({ bed }: { bed: Bed }) {
           />
         ))}
       </div>
-    </div>
+    </Link>
   );
 }

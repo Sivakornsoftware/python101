@@ -3,6 +3,7 @@
 import { Bell, Menu, RefreshCw, Search } from "lucide-react";
 import { formatThaiDate, formatTime12h } from "@/lib/datetime";
 import { useNowBucket } from "@/lib/useNow";
+import { useTopbarOverride } from "@/lib/topbarStore";
 
 interface TopbarProps {
   title: string;
@@ -10,9 +11,17 @@ interface TopbarProps {
   onMenuClick: () => void;
 }
 
-export default function Topbar({ title, subtitle, onMenuClick }: TopbarProps) {
+export default function Topbar({
+  title: defaultTitle,
+  subtitle: defaultSubtitle,
+  onMenuClick,
+}: TopbarProps) {
   const bucket = useNowBucket();
   const now = bucket === null ? null : new Date();
+
+  const override = useTopbarOverride();
+  const title = override?.title ?? defaultTitle;
+  const subtitle = override?.subtitle ?? defaultSubtitle;
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4 lg:px-6">

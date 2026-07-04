@@ -21,6 +21,7 @@ const PAGE_META: Record<string, PageMeta> = {
   "/analytics": { title: "Analytics", subtitle: "การวิเคราะห์ข้อมูล" },
   "/alerts": { title: "Alerts", subtitle: "การแจ้งเตือน" },
   "/admin": { title: "Admin", subtitle: "ตั้งค่าระบบ" },
+  "/patients": { title: "แฟ้มผู้ป่วย", subtitle: "IPD Chart" },
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
