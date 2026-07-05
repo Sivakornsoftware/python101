@@ -65,6 +65,7 @@ CENSUS_PATIENTS_SQL = """
         pt.birthday                                 AS birthday,
         b.name                                      AS blood_group,
         i.dateadmit                                 AS dateadmit,
+        i.prediagnos                                AS diagnosis,
         dd.prename || dd.name || ' ' || dd.surname  AS doctor_name
     FROM ipdtrans i
     JOIN patients pt          ON i.hn = pt.hn
