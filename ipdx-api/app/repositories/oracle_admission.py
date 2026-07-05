@@ -48,34 +48,34 @@ WARD_SQL = """
     WHERE placecode = :ward_id
 """
 
-# Optional bed master (to show empty beds). Leave "" to build from admissions.
-WARD_BEDS_SQL = ""
-
-# Currently admitted patients in a ward — based on the query provided by the HIS.
-# NOTE: add a `sex` and a `diagnosis` column here when available; they are
-# mapped automatically (see _to_patient).
-CENSUS_PATIENTS_SQL = """
+# Bed-centric census: one row per bed in the ward. A bed with occupy_flag NULL
+# (or no admission row) is an empty bed. Left joins bring in the current
+# admission / patient / doctor when the bed is occupied.
+CENSUS_BEDS_SQL = """
     SELECT
-        i.pla_placecode                             AS ward_code,
+        b.pla_placecode                             AS ward_code,
         pl.halfplace                                AS ward_name,
-        i.bed_no                                    AS bed,
+        b.code                                      AS bed,
+        b.occupy_flag                               AS occupy_flag,
         i.an                                        AS an,
         i.hn                                        AS hn,
         pt.prename || pt.name || ' ' || pt.surname  AS patient_name,
         pt.sex                                      AS sex,
+        pt.bg_blood_gr_id                           AS blood_group,
         pt.birthday                                 AS birthday,
-        b.name                                      AS blood_group,
         i.dateadmit                                 AS dateadmit,
         i.prediagnos                                AS diagnosis,
         dd.prename || dd.name || ' ' || dd.surname  AS doctor_name
-    FROM ipdtrans i
-    JOIN patients pt          ON i.hn = pt.hn
-    LEFT JOIN blood_groups b  ON pt.bg_blood_gr_id = b.blood_gr_id
-    LEFT JOIN doc_dbfs dd     ON i.dd_doc_code = dd.doc_code
-    JOIN places pl            ON i.pla_placecode = pl.placecode
-    WHERE i.datedisch IS NULL
-      AND i.pla_placecode = :ward_id
-    ORDER BY LENGTH(i.bed_no), i.bed_no
+    FROM beds b
+    LEFT JOIN places pl    ON b.pla_placecode = pl.placecode
+    LEFT JOIN ipdtrans i   ON b.pla_placecode = i.pla_placecode
+                          AND b.code = i.bed_no
+                          AND i.datedisch IS NULL
+    LEFT JOIN patients pt  ON i.hn = pt.hn
+    LEFT JOIN doc_dbfs dd  ON i.dd_doc_code = dd.doc_code
+    WHERE b.pla_placecode = :ward_id
+      AND b.del_flag IS NULL
+    ORDER BY LENGTH(b.code), b.code
 """
 
 
@@ -137,46 +137,31 @@ class OracleAdmissionRepository(AdmissionRepository):
             cur.execute(WARD_SQL, ward_id=ward_id)
             ward_rows = rows_as_dicts(cur)
 
-            bed_master: list[dict] = []
-            if WARD_BEDS_SQL.strip():
-                cur.execute(WARD_BEDS_SQL, ward_id=ward_id)
-                bed_master = rows_as_dicts(cur)
+            cur.execute(CENSUS_BEDS_SQL, ward_id=ward_id)
+            bed_rows = rows_as_dicts(cur)
 
-            cur.execute(CENSUS_PATIENTS_SQL, ward_id=ward_id)
-            patient_rows = rows_as_dicts(cur)
-
-        # Ward name: prefer places row, else fall back to the census rows.
+        # Ward name: prefer the places row, else fall back to a bed row.
         if ward_rows:
             ward_name = _clean(ward_rows[0]["name"]) or ward_id
-        elif patient_rows:
-            ward_name = _clean(patient_rows[0].get("ward_name")) or ward_id
+        elif bed_rows:
+            ward_name = _clean(bed_rows[0].get("ward_name")) or ward_id
         else:
             return None
 
-        patients_by_bed = {_clean(r["bed"]): r for r in patient_rows}
-
         beds: list[Bed] = []
-        if bed_master:
-            for b in bed_master:
-                bed_no = _clean(b["bed"])
-                prow = patients_by_bed.get(bed_no)
+        for r in bed_rows:
+            bed_no = _clean(r.get("bed"))
+            # Empty when occupy_flag is NULL or there is no admitted patient.
+            occupied = r.get("occupy_flag") is not None and bool(_clean(r.get("hn")))
+            if occupied:
                 beds.append(
-                    Bed(bed=bed_no, status="occupied", patient=_to_patient(prow, ward_id))
-                    if prow
-                    else Bed(bed=bed_no, status="empty", patient=None)
+                    Bed(bed=bed_no, status="occupied", patient=_to_patient(r, ward_id))
                 )
-        else:
-            for r in patient_rows:
-                beds.append(
-                    Bed(
-                        bed=_clean(r["bed"]),
-                        status="occupied",
-                        patient=_to_patient(r, ward_id),
-                    )
-                )
+            else:
+                beds.append(Bed(bed=bed_no, status="empty", patient=None))
 
         occupied = sum(1 for b in beds if b.status == "occupied")
-        total = len(beds) if bed_master else occupied
+        total = len(beds)
         admitted_pct = round((occupied / total * 100), 1) if total else 0.0
 
         summary = WardSummary(
