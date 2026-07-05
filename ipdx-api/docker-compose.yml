@@ -1,0 +1,9 @@
+services:
+  api:
+    build: .
+    image: ipdx-api:latest
+    env_file: .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # For frequent updates:  docker compose up -d --no-deps --build api
