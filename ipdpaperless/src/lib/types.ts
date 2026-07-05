@@ -42,6 +42,11 @@ export interface Patient {
   an?: string; // Admission Number
   name: string;
   ageYears: number;
+  /** Detailed age breakdown from birthday. */
+  ageMonths?: number;
+  ageDays?: number;
+  /** Preformatted Thai age, e.g. "68 ปี 4 เดือน 22 วัน". */
+  ageDisplay?: string;
   sex: Sex;
   /** Free-text / short diagnosis list shown on the card. */
   diagnosis: string;
@@ -52,6 +57,9 @@ export interface Patient {
   /** True to render the alert (warning) glyph on the card. */
   hasAlert?: boolean;
   ward?: string;
+  /** Enrichment fields from the admission source. */
+  attendingDoctor?: string;
+  bloodGroup?: string;
 }
 
 /** KPI summary cards shown at the top of the Ward Census page. */

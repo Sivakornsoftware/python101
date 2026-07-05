@@ -26,7 +26,7 @@ export default function PatientHeaderFull({ p }: { p: PatientDetail }) {
               <Copy className="h-3 w-3 cursor-pointer hover:text-slate-700" />
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
-              {p.ageYears} Y {p.sex} · {p.dob}
+              {p.ageDisplay ?? `${p.ageYears} Y`} · {p.sex} · {p.dob}
             </p>
           </div>
         </div>

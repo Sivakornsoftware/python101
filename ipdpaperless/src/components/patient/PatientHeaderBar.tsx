@@ -23,7 +23,7 @@ export default function PatientHeaderBar({ p }: { p: PatientDetail }) {
         <div className="leading-tight">
           <p className="text-base font-bold text-slate-800">{p.name}</p>
           <p className="text-xs text-slate-500">
-            HN {p.hn} · {p.ageYears} Y {p.sex} · {p.dob}
+            HN {p.hn} · {p.ageDisplay ?? `${p.ageYears} Y`} · {p.sex} · {p.dob}
           </p>
         </div>
       </div>

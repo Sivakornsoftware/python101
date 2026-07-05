@@ -1,7 +1,10 @@
 import WardCensusView from "@/components/ward/WardCensusView";
-import { getWardCensus } from "@/lib/api/ward";
+import { getWardCensus, getWards } from "@/lib/api/ward";
 
 export default async function WardPage() {
-  const census = await getWardCensus("5A");
+  // Use the first available ward (real ward code in live mode, "5A" in mock).
+  const wards = await getWards();
+  const wardId = wards[0]?.id ?? "5A";
+  const census = await getWardCensus(wardId);
   return <WardCensusView data={census} />;
 }
