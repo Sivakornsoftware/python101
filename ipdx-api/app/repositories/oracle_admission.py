@@ -61,18 +61,19 @@ CENSUS_BEDS_SQL = """
         i.hn                                        AS hn,
         pt.prename || pt.name || ' ' || pt.surname  AS patient_name,
         pt.sex                                      AS sex,
-        pt.bg_blood_gr_id                           AS blood_group,
+        bg.name                                     AS blood_group,
         pt.birthday                                 AS birthday,
         i.dateadmit                                 AS dateadmit,
         i.prediagnos                                AS diagnosis,
         dd.prename || dd.name || ' ' || dd.surname  AS doctor_name
     FROM beds b
-    LEFT JOIN places pl    ON b.pla_placecode = pl.placecode
-    LEFT JOIN ipdtrans i   ON b.pla_placecode = i.pla_placecode
-                          AND b.code = i.bed_no
-                          AND i.datedisch IS NULL
-    LEFT JOIN patients pt  ON i.hn = pt.hn
-    LEFT JOIN doc_dbfs dd  ON i.dd_doc_code = dd.doc_code
+    LEFT JOIN places pl        ON b.pla_placecode = pl.placecode
+    LEFT JOIN ipdtrans i       ON b.pla_placecode = i.pla_placecode
+                              AND b.code = i.bed_no
+                              AND i.datedisch IS NULL
+    LEFT JOIN patients pt      ON i.hn = pt.hn
+    LEFT JOIN blood_groups bg  ON pt.bg_blood_gr_id = bg.blood_gr_id
+    LEFT JOIN doc_dbfs dd      ON i.dd_doc_code = dd.doc_code
     WHERE b.pla_placecode = :ward_id
       AND b.del_flag IS NULL
     ORDER BY LENGTH(b.code), b.code
