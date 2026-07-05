@@ -11,9 +11,15 @@
  * without touching component code.
  */
 
+/** Tolerant parse: trims whitespace / stray CR / BOM before comparing. */
+const useMockRaw = (process.env.NEXT_PUBLIC_USE_MOCK ?? "true")
+  .replace(/^\uFEFF/, "")
+  .trim()
+  .toLowerCase();
+
 export const config = {
   /** When true, all data-layer functions return mock data. */
-  useMock: process.env.NEXT_PUBLIC_USE_MOCK !== "false",
+  useMock: useMockRaw !== "false",
 
   /** Base URL of the FastAPI service backed by Oracle 11g. */
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
@@ -33,3 +39,13 @@ export const config = {
 } as const;
 
 export type AppConfig = typeof config;
+
+// One-time server-side log so you can see which data source is active in the
+// `npm run dev` terminal.
+if (typeof window === "undefined") {
+  console.log(
+    `[IPDX] data source: ${
+      config.useMock ? "MOCK" : `LIVE (${config.apiBaseUrl})`
+    }`,
+  );
+}
