@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BedDouble,
@@ -9,11 +10,13 @@ import {
   ArrowUpDown,
   LayoutGrid,
   List,
+  Loader2,
   Play,
   Plus,
   Users,
 } from "lucide-react";
-import type { Bed, WardCensus } from "@/lib/types";
+import type { Bed, Ward, WardCensus } from "@/lib/types";
+import { useSetTopbar } from "@/lib/topbarStore";
 import StatCard from "./StatCard";
 import TrendChart from "./TrendChart";
 import PatientCard from "./PatientCard";
@@ -29,11 +32,30 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "plan", label: "Discharge Plan" },
 ];
 
-export default function WardCensusView({ data }: { data: WardCensus }) {
+export default function WardCensusView({
+  data,
+  wards = [],
+  selectedWardId,
+}: {
+  data: WardCensus;
+  wards?: Ward[];
+  selectedWardId?: string;
+}) {
   const [tab, setTab] = useState<TabKey>("overview");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  // Reflect the selected ward's name in the top header.
+  useSetTopbar(data.wardName, data.wardNameTh);
 
   const { summary, beds, lastUpdated } = data;
+
+  function onSelectWard(id: string) {
+    startTransition(() => {
+      router.push(`/ward?ward=${encodeURIComponent(id)}`);
+    });
+  }
 
   const visibleBeds: Bed[] = useMemo(() => {
     switch (tab) {
@@ -52,6 +74,43 @@ export default function WardCensusView({ data }: { data: WardCensus }) {
 
   return (
     <div className="space-y-4">
+      {/* Ward selector */}
+      {wards.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <label
+            htmlFor="ward-select"
+            className="text-sm font-medium text-slate-500"
+          >
+            หอผู้ป่วย
+          </label>
+          <div className="relative">
+            <select
+              id="ward-select"
+              value={selectedWardId ?? data.wardId}
+              onChange={(e) => onSelectWard(e.target.value)}
+              disabled={isPending}
+              className="appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm font-semibold text-slate-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+            >
+              {wards.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.nameTh} ({w.id})
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 rotate-0" />
+              )}
+            </span>
+          </div>
+          <span className="text-xs text-slate-400">
+            {summary.occupiedBeds} เตียงมีผู้ป่วย
+          </span>
+        </div>
+      ) : null}
+
       {/* Tab row + controls */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 overflow-x-auto">
