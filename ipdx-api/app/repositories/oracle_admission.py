@@ -27,16 +27,16 @@ from .base import AdmissionRepository
 
 # --- SQL against the real HIS schema -------------------------------------- #
 
-# Active IPD wards = wards that currently have admitted patients.
+# IPD ward master list (pt_place_type_code='2' = ward), used by the ward picker.
 WARDS_SQL = """
-    SELECT DISTINCT
-        i.pla_placecode AS id,
-        pl.halfplace    AS name,
-        pl.halfplace    AS name_th
-    FROM ipdtrans i
-    JOIN places pl ON i.pla_placecode = pl.placecode
-    WHERE i.datedisch IS NULL
-    ORDER BY pl.halfplace
+    SELECT
+        placecode AS id,
+        halfplace AS name,
+        halfplace AS name_th
+    FROM places
+    WHERE del_flag IS NULL
+      AND pt_place_type_code = '2'
+    ORDER BY halfplace
 """
 
 WARD_SQL = """
