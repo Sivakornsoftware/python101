@@ -46,6 +46,10 @@ class Patient(CamelModel):
     an: Optional[str] = None
     name: str
     age_years: int
+    # Detailed age breakdown (from birthday). age_display e.g. "68 ปี 4 เดือน 22 วัน".
+    age_months: Optional[int] = None
+    age_days: Optional[int] = None
+    age_display: Optional[str] = None
     sex: Sex
     diagnosis: str
     los_days: int
@@ -53,6 +57,9 @@ class Patient(CamelModel):
     pending: PendingCounts
     has_alert: bool = False
     ward: Optional[str] = None
+    # Enrichment fields available from the admission query.
+    attending_doctor: Optional[str] = None
+    blood_group: Optional[str] = None
 
 
 class Bed(CamelModel):

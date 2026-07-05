@@ -1,18 +1,11 @@
-"""Oracle-backed admission repository.
+"""Oracle-backed admission repository (real HIS schema).
 
-===========================================================================
-  THIS IS THE ONLY FILE YOU NEED TO EDIT TO CONNECT THE REAL HIS SCHEMA.
-===========================================================================
+Queries the live HIS tables (ipdtrans / patients / places / doc_dbfs /
+blood_groups) and maps the rows onto the clean Patient/WardCensus contract.
+This is the anti-corruption layer: legacy table/column names live only here.
 
-Replace the SQL templates below with queries against your HIS (Oracle 11g)
-tables/views. Keep the column ALIASES (the `AS xxx` names) exactly as they
-are — the mapping code relies on them. That way the legacy table/column names
-stay contained here (anti-corruption layer) and never leak to the web app.
-
-Tips for Oracle 11g:
-  * Compute length of stay in SQL, e.g.  TRUNC(SYSDATE) - TRUNC(a.admit_date) AS los_days
-  * Bind variables use :name syntax (already used below).
-  * If you expose a VIEW over the legacy tables, point the FROM clause at it.
+Column ALIASES in the SQL (`AS xxx`) must stay in sync with the keys read in
+the mapping functions below.
 """
 
 from __future__ import annotations
@@ -29,80 +22,98 @@ from app.schemas.ward import (
     WardCensus,
     WardSummary,
 )
+from app.utils.age import age_display_th, age_parts, days_between
 from .base import AdmissionRepository
 
-# --- SQL templates: ADJUST TO YOUR REAL SCHEMA ---------------------------- #
+# --- SQL against the real HIS schema -------------------------------------- #
 
+# Active IPD wards = wards that currently have admitted patients.
 WARDS_SQL = """
-    SELECT
-        ward_id     AS id,
-        ward_name   AS name,
-        ward_name   AS name_th
-    FROM ipd_ward_master
-    ORDER BY ward_id
+    SELECT DISTINCT
+        i.pla_placecode AS id,
+        pl.halfplace    AS name,
+        pl.halfplace    AS name_th
+    FROM ipdtrans i
+    JOIN places pl ON i.pla_placecode = pl.placecode
+    WHERE i.datedisch IS NULL
+    ORDER BY pl.halfplace
 """
 
 WARD_SQL = """
     SELECT
-        ward_id     AS id,
-        ward_name   AS name,
-        ward_name   AS name_th
-    FROM ipd_ward_master
-    WHERE ward_id = :ward_id
+        placecode AS id,
+        halfplace AS name,
+        halfplace AS name_th
+    FROM places
+    WHERE placecode = :ward_id
 """
 
-# Optional: list every bed of a ward so empty beds also appear.
-# Leave as "" (empty string) to build the census only from admitted patients.
+# Optional bed master (to show empty beds). Leave "" to build from admissions.
 WARD_BEDS_SQL = ""
-# Example once you have a bed master:
-# WARD_BEDS_SQL = """
-#     SELECT bed_no AS bed
-#     FROM ipd_bed_master
-#     WHERE ward_id = :ward_id
-#     ORDER BY bed_no
-# """
 
-# Currently admitted patients in a ward (the core admission query).
+# Currently admitted patients in a ward — based on the query provided by the HIS.
+# NOTE: add a `sex` and a `diagnosis` column here when available; they are
+# mapped automatically (see _to_patient).
 CENSUS_PATIENTS_SQL = """
     SELECT
-        a.bed_no                              AS bed,
-        a.hn                                  AS hn,
-        a.an                                  AS an,
-        p.patient_name                        AS name,
-        p.age_years                           AS age_years,
-        p.sex                                 AS sex,
-        a.diagnosis                           AS diagnosis,
-        TRUNC(SYSDATE) - TRUNC(a.admit_date)  AS los_days
-    FROM ipd_admission a
-    JOIN patient p ON p.hn = a.hn
-    WHERE a.ward_id = :ward_id
-      AND a.discharge_date IS NULL
-    ORDER BY a.bed_no
+        i.pla_placecode                             AS ward_code,
+        pl.halfplace                                AS ward_name,
+        i.bed_no                                    AS bed,
+        i.an                                        AS an,
+        i.hn                                        AS hn,
+        pt.prename || pt.name || ' ' || pt.surname  AS patient_name,
+        pt.birthday                                 AS birthday,
+        b.name                                      AS blood_group,
+        i.dateadmit                                 AS dateadmit,
+        dd.prename || dd.name || ' ' || dd.surname  AS doctor_name
+    FROM ipdtrans i
+    JOIN patients pt          ON i.hn = pt.hn
+    LEFT JOIN blood_groups b  ON pt.bg_blood_gr_id = b.blood_gr_id
+    LEFT JOIN doc_dbfs dd     ON i.dd_doc_code = dd.doc_code
+    JOIN places pl            ON i.pla_placecode = pl.placecode
+    WHERE i.datedisch IS NULL
+      AND i.pla_placecode = :ward_id
+    ORDER BY LENGTH(i.bed_no), i.bed_no
 """
+
+
+def _map_sex(value: object) -> str:
+    """Map various HIS sex encodings to 'M' / 'F'. Defaults to 'M'."""
+    s = str(value or "").strip().upper()
+    if s in ("F", "2", "หญิง", "FEMALE", "W"):
+        return "F"
+    return "M"
+
+
+def _clean(value: object) -> str:
+    return str(value).strip() if value is not None else ""
 
 
 def _to_patient(row: dict, ward_id: str) -> Patient:
-    """Map a DB row (keyed by SQL alias) onto the Patient contract.
+    hn = _clean(row.get("hn"))
+    birthday = row.get("birthday")
+    parts = age_parts(birthday)
+    years, months, days = parts if parts else (0, None, None)
 
-    Priority and pending counts are NOT part of admission data — they get
-    enriched later from clinical scoring (NEWS) and the PostgreSQL side.
-    Defaults are used here so the admission endpoint works on its own.
-    """
-    sex = (str(row.get("sex") or "M")).upper()
-    sex = "F" if sex in ("F", "2", "หญิง") else "M"
     return Patient(
-        id=f"p{row.get('bed')}",
-        hn=str(row.get("hn") or ""),
-        an=(str(row["an"]) if row.get("an") is not None else None),
-        name=str(row.get("name") or ""),
-        age_years=int(row.get("age_years") or 0),
-        sex=sex,  # type: ignore[arg-type]
-        diagnosis=str(row.get("diagnosis") or ""),
-        los_days=int(row.get("los_days") or 0),
-        priority="P3",  # enriched later
+        id=hn or _clean(row.get("an")) or f"bed-{row.get('bed')}",
+        hn=hn,
+        an=(_clean(row["an"]) or None) if row.get("an") is not None else None,
+        name=_clean(row.get("patient_name")),
+        age_years=years,
+        age_months=months,
+        age_days=days,
+        age_display=age_display_th(birthday),
+        # `sex`/`diagnosis` are not in the base query yet — mapped if present.
+        sex=_map_sex(row.get("sex")),  # type: ignore[arg-type]
+        diagnosis=_clean(row.get("diagnosis")),
+        los_days=days_between(row.get("dateadmit")),
+        priority="P3",  # enriched later (clinical scoring / NEWS)
         pending=PendingCounts(lab=0, consult=0, task=0, med=0),
         has_alert=False,
         ward=ward_id,
+        attending_doctor=_clean(row.get("doctor_name")) or None,
+        blood_group=_clean(row.get("blood_group")) or None,
     )
 
 
@@ -113,7 +124,7 @@ class OracleAdmissionRepository(AdmissionRepository):
             cur.execute(WARDS_SQL)
             rows = rows_as_dicts(cur)
         return [
-            Ward(id=str(r["id"]), name=str(r["name"]), name_th=str(r["name_th"]))
+            Ward(id=_clean(r["id"]), name=_clean(r["name"]), name_th=_clean(r["name_th"]))
             for r in rows
         ]
 
@@ -123,9 +134,6 @@ class OracleAdmissionRepository(AdmissionRepository):
 
             cur.execute(WARD_SQL, ward_id=ward_id)
             ward_rows = rows_as_dicts(cur)
-            if not ward_rows:
-                return None
-            ward = ward_rows[0]
 
             bed_master: list[dict] = []
             if WARD_BEDS_SQL.strip():
@@ -135,12 +143,20 @@ class OracleAdmissionRepository(AdmissionRepository):
             cur.execute(CENSUS_PATIENTS_SQL, ward_id=ward_id)
             patient_rows = rows_as_dicts(cur)
 
-        patients_by_bed = {str(r["bed"]): r for r in patient_rows}
+        # Ward name: prefer places row, else fall back to the census rows.
+        if ward_rows:
+            ward_name = _clean(ward_rows[0]["name"]) or ward_id
+        elif patient_rows:
+            ward_name = _clean(patient_rows[0].get("ward_name")) or ward_id
+        else:
+            return None
+
+        patients_by_bed = {_clean(r["bed"]): r for r in patient_rows}
 
         beds: list[Bed] = []
         if bed_master:
             for b in bed_master:
-                bed_no = str(b["bed"])
+                bed_no = _clean(b["bed"])
                 prow = patients_by_bed.get(bed_no)
                 beds.append(
                     Bed(bed=bed_no, status="occupied", patient=_to_patient(prow, ward_id))
@@ -151,7 +167,7 @@ class OracleAdmissionRepository(AdmissionRepository):
             for r in patient_rows:
                 beds.append(
                     Bed(
-                        bed=str(r["bed"]),
+                        bed=_clean(r["bed"]),
                         status="occupied",
                         patient=_to_patient(r, ward_id),
                     )
@@ -178,9 +194,9 @@ class OracleAdmissionRepository(AdmissionRepository):
 
         now = datetime.now().strftime("%I:%M %p")
         return WardCensus(
-            ward_id=str(ward["id"]),
-            ward_name=str(ward["name"]),
-            ward_name_th=str(ward["name_th"]),
+            ward_id=ward_id,
+            ward_name=ward_name,
+            ward_name_th=ward_name,
             summary=summary,
             beds=beds,
             last_updated=LastUpdated(vitals=now, lab=now, orders=now, tasks=now),
