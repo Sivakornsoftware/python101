@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     oracle_user: str = ""
     oracle_password: str = ""
     oracle_dsn: str = ""
+    # THICK mode is required for Oracle 11g. If the target DB is 12.1+ (e.g. a
+    # PDB service like ORCLPDB1), you can set this to false to use THIN mode,
+    # which needs NO Oracle Instant Client.
+    oracle_thick: bool = True
     # Oracle 11g requires python-oracledb THICK mode, which needs the Oracle
     # Instant Client. Set this to the Instant Client directory, e.g.
     # "/opt/oracle/instantclient_19_24". Leave empty to let the driver find it

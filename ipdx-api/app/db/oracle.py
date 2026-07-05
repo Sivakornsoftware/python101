@@ -20,14 +20,19 @@ _lock = threading.Lock()
 _thick_initialized = False
 
 
-def _init_thick_mode() -> None:
+def _init_client() -> None:
+    """Initialize the Oracle client in thick mode when required.
+
+    Thick mode is mandatory for Oracle 11g. For 12.1+ (e.g. a PDB) thin mode
+    can be used, in which case no Instant Client is needed and nothing is done.
+    """
     global _thick_initialized
     if _thick_initialized:
         return
     settings = get_settings()
-    lib_dir = settings.oracle_lib_dir or None
-    # Enables thick mode (mandatory for Oracle 11g).
-    oracledb.init_oracle_client(lib_dir=lib_dir)
+    if settings.oracle_thick:
+        lib_dir = settings.oracle_lib_dir or None
+        oracledb.init_oracle_client(lib_dir=lib_dir)
     _thick_initialized = True
 
 
@@ -38,7 +43,7 @@ def get_pool() -> oracledb.ConnectionPool:
         return _pool
     with _lock:
         if _pool is None:
-            _init_thick_mode()
+            _init_client()
             settings = get_settings()
             _pool = oracledb.create_pool(
                 user=settings.oracle_user,
