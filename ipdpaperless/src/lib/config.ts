@@ -36,6 +36,9 @@ export const config = {
 
   /** Simulated network latency (ms) for mock mode, to mimic real requests. */
   mockLatencyMs: Number(process.env.NEXT_PUBLIC_MOCK_LATENCY_MS ?? 250),
+
+  /** Ward code to open by default on the Ward Census page (e.g. "1013"). */
+  defaultWard: (process.env.NEXT_PUBLIC_DEFAULT_WARD ?? "").trim(),
 } as const;
 
 export type AppConfig = typeof config;

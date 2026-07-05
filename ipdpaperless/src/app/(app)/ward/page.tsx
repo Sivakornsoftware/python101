@@ -1,5 +1,6 @@
 import WardCensusView from "@/components/ward/WardCensusView";
 import { getWardCensus, getWards } from "@/lib/api/ward";
+import { config } from "@/lib/config";
 
 export default async function WardPage({
   searchParams,
@@ -8,10 +9,13 @@ export default async function WardPage({
 }) {
   const { ward } = await searchParams;
   const wards = await getWards();
+  const has = (id?: string) => !!id && wards.some((w) => w.id === id);
 
-  const selectedWardId =
-    ward && wards.some((w) => w.id === ward)
-      ? ward
+  // Priority: ?ward= query -> configured default ward -> first ward in the list.
+  const selectedWardId = has(ward)
+    ? (ward as string)
+    : has(config.defaultWard)
+      ? config.defaultWard
       : wards[0]?.id ?? "5A";
 
   const census = await getWardCensus(selectedWardId);
