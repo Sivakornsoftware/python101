@@ -62,6 +62,7 @@ CENSUS_PATIENTS_SQL = """
         i.an                                        AS an,
         i.hn                                        AS hn,
         pt.prename || pt.name || ' ' || pt.surname  AS patient_name,
+        pt.sex                                      AS sex,
         pt.birthday                                 AS birthday,
         b.name                                      AS blood_group,
         i.dateadmit                                 AS dateadmit,
@@ -81,7 +82,7 @@ CENSUS_PATIENTS_SQL = """
 def _map_sex(value: object) -> str:
     """Map various HIS sex encodings to 'M' / 'F'. Defaults to 'M'."""
     s = str(value or "").strip().upper()
-    if s in ("F", "2", "หญิง", "FEMALE", "W"):
+    if s in ("F", "2", "W", "FEMALE", "หญิง", "ญ"):
         return "F"
     return "M"
 
