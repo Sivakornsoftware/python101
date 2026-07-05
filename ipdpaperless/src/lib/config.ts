@@ -43,7 +43,6 @@ export type AppConfig = typeof config;
 // One-time server-side log so you can see which data source is active in the
 // `npm run dev` terminal.
 if (typeof window === "undefined") {
-  // eslint-disable-next-line no-console
   console.log(
     `[IPDX] data source: ${
       config.useMock ? "MOCK" : `LIVE (${config.apiBaseUrl})`
